@@ -1,0 +1,28 @@
+name: Vitrine APK bauen
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: APK bauen und als Release ablegen
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" quelle
+          cd quelle
+          ZIP="$(git log --format= --name-only -- '*.zip' | grep -m1 '\.zip$' || true)"
+          if [ ! -f "$ZIP" ]; then ZIP="$(ls -1 *.zip 2>/dev/null | tail -n 1 || true)"; fi
+          if [ ! -f "$ZIP" ]; then echo "Noch keine ZIP-Datei da. Lade vitrine-app.zip ins Repository hoch."; exit 0; fi
+          rm -rf ../projekt && mkdir ../projekt && unzip -q -o "$ZIP" -d ../projekt
+          SKRIPT="$(find ../projekt -name apk-bauen.sh | head -n 1)"
+          if [ -z "$SKRIPT" ]; then echo "In der ZIP fehlt apk-bauen.sh."; exit 1; fi
+          cd "$(dirname "$SKRIPT")" && bash apk-bauen.sh
